@@ -1,1 +1,1 @@
-python main.py --max-queries 1000000 --top-k 1 --img-index 0 --out-dir label_only/ --adv-thresh 0.15 --sigma 1e-3 --plateau-length 20 --samples-per-draw 100 --batch-size 4 --min-lr 1e-4 --label-only --zero-iters 50 --label-only-sigma 2e-3 --conservative 4 
+python main.py --max_queries 1000000 --top_k 1 --img_index 0 --out_dir label_only/ --adv_thresh 0.15 --sigma 1e-3 --plateau_length 20 --samples_per_draw 100 --batch_size 4 --min_lr 1e-4 --label_only --zero_iters 50 --label_only_sigma 2e-3 --conservative 4 
