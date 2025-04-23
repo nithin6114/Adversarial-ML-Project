@@ -1,1 +1,2 @@
-python main.py --max-queries 1000000 --top-k 1 --img-index 0 --out-dir label_only/ --adv-thresh 0.2 --sigma 1e-5 --plateau-length 20 --samples-per-draw 100 --batch-size 100 --min-lr 1e-3
+python main.py --max_queries 2000000 --top_k 1 --img_index 504 --out_dir partial-info/ --adv_thresh 0.1 --sigma 1e-5 --plateau_length 20 --samples_per_draw 100 --batch_size 100 --min_lr 1e-3 --gpus 0 \
+# 53, 54, 55, 56, 57, 58, 59, 60, 62, 63, 64, 66, 70, 72, 73, 78, 103, 120, 123, 125, 137]
