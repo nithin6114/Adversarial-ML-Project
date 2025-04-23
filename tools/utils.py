@@ -19,26 +19,7 @@ def image_of_class(y, imagenet_path=None):
     return get_image(im_indices[y], imagenet_path)[0].copy()
 
 
-# def get_available_class_indices(imagenet_path, max_classes=200):
-#     """
-#     Returns a list of class indices available in Tiny ImageNet.
 
-#     Args:
-#         imagenet_path (str): Path to the Tiny ImageNet directory.
-#         max_classes (int): Max number of classes to include (default 200).
-
-#     Returns:
-#         List[int]: Available class indices (0 to max_classes-1).
-#     """
-#     wnids_path = os.path.join(imagenet_path, 'wnids.txt')
-#     if not os.path.exists(wnids_path):
-#         raise FileNotFoundError(f"'wnids.txt' not found at {wnids_path}")
-
-#     with open(wnids_path, 'r') as f:
-#         wnids = [line.strip() for line in f.readlines()]
-
-#     # Just return a list of class indices up to max_classes
-#     return list(range(min(len(wnids), max_classes)))
 def get_available_class_indices(imagenet_path, max_classes=200):
     """
     Returns a sorted list of valid class indices based on what exists in the pickle file
