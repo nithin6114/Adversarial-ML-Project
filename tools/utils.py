@@ -5,6 +5,9 @@ import numpy as np
 import os
 import pickle
 from matplotlib import pyplot as plt
+from tensorflow.python.training import py_checkpoint_reader
+import imageio
+
 
 def image_of_class(y, imagenet_path=None):
     """
@@ -14,6 +17,39 @@ def image_of_class(y, imagenet_path=None):
     """
     im_indices = pickle.load(open("tools/data/imagenet.pickle", "rb"))
     return get_image(im_indices[y], imagenet_path)[0].copy()
+
+
+# def get_available_class_indices(imagenet_path, max_classes=200):
+#     """
+#     Returns a list of class indices available in Tiny ImageNet.
+
+#     Args:
+#         imagenet_path (str): Path to the Tiny ImageNet directory.
+#         max_classes (int): Max number of classes to include (default 200).
+
+#     Returns:
+#         List[int]: Available class indices (0 to max_classes-1).
+#     """
+#     wnids_path = os.path.join(imagenet_path, 'wnids.txt')
+#     if not os.path.exists(wnids_path):
+#         raise FileNotFoundError(f"'wnids.txt' not found at {wnids_path}")
+
+#     with open(wnids_path, 'r') as f:
+#         wnids = [line.strip() for line in f.readlines()]
+
+#     # Just return a list of class indices up to max_classes
+#     return list(range(min(len(wnids), max_classes)))
+def get_available_class_indices(imagenet_path, max_classes=200):
+    """
+    Returns a sorted list of valid class indices based on what exists in the pickle file
+    and/or dataset directory.
+    """
+    with open("tools/data/imagenet.pickle", "rb") as f:
+        im_indices = pickle.load(f)
+
+    # Filter keys that are within the max_classes and actually have images
+    available = [k for k in im_indices.keys() if k < max_classes]
+    return sorted(available)
 
 def pseudorandom_target(index, total_indices, true_class):
     rng = np.random.RandomState(index)
@@ -29,38 +65,59 @@ def pseudorandom_target_image(orig_index, total_indices):
         target_img_index = rng.randint(0, total_indices)
     return target_img_index
 
-# get center crop
 def load_image(path):
-    image = PIL.Image.open(path)
-    if image.height > image.width:
-        height_off = int((image.height - image.width)/2)
-        image = image.crop((0, height_off, image.width, height_off+image.width))
-    elif image.width > image.height:
-        width_off = int((image.width - image.height)/2)
-        image = image.crop((width_off, 0, width_off+image.height, image.height))
-    image = image.resize((299, 299))
-    img = np.asarray(image).astype(np.float32) / 255.0
+    image = PIL.Image.open(path).convert('RGB')  # Ensure it's 3-channel RGB
+    image = image.resize((299, 299))  # Resize to match InceptionV3 input size
+    img = np.asarray(image).astype(np.float32) / 255.0  # Normalize to [0,1]
+
+    # Ensure final shape is (299, 299, 3)
     if img.ndim == 2:
-        img = np.repeat(img[:,:,np.newaxis], repeats=3, axis=2)
-    if img.shape[2] == 4:
-        # alpha channel
-        img = img[:,:,:3]
+        img = np.repeat(img[:, :, np.newaxis], repeats=3, axis=2)
+    elif img.shape[2] == 4:
+        img = img[:, :, :3]
+
     return img
 
+
 def get_image(index, imagenet_path=None):
-    data_path = os.path.join(imagenet_path, 'val')
-    image_paths = sorted([os.path.join(data_path, i) for i in os.listdir(data_path)])
-    assert len(image_paths) == 50000
-    labels_path = os.path.join(imagenet_path, 'val.txt')
+    data_path = os.path.join(imagenet_path, 'val', 'images')
+    image_paths = sorted([os.path.join(data_path, i) for i in os.listdir(data_path) if i.endswith(".JPEG")])
+    
+    assert len(image_paths) > index, f"Image index {index} out of bounds with only {len(image_paths)} images"
+
+    labels_path = os.path.join(imagenet_path, 'val', 'val_annotations.txt')
     with open(labels_path) as labels_file:
-        labels = [i.split(' ') for i in labels_file.read().strip().split('\n')]
-        labels = {os.path.basename(i[0]): int(i[1]) for i in labels}
+        lines = labels_file.read().strip().split('\n')
+        labels = {}
+        label_map = {}  # map class names to integer labels
+        current_label = 0
+        for line in lines:
+            parts = line.split('\t')
+            filename = parts[0]
+            classname = parts[1]
+            if classname not in label_map:
+                label_map[classname] = current_label
+                current_label += 1
+            labels[filename] = label_map[classname]
+
     def get(index):
         path = image_paths[index]
         x = load_image(path)
         y = labels[os.path.basename(path)]
         return x, y
+
     return get(index)
+
+
+    def get(index):
+        path = image_paths[index]
+        x = load_image(path)
+        y = labels[os.path.basename(path)]
+        return x, y
+
+    return get(index)
+
+
 
 def one_hot(index, total):
     arr = np.zeros((total))
@@ -68,19 +125,25 @@ def one_hot(index, total):
     return arr
 
 def optimistic_restore(session, save_file):
-    reader = tf.train.NewCheckpointReader(save_file)
+    reader = py_checkpoint_reader.NewCheckpointReader(save_file)
     saved_shapes = reader.get_variable_to_shape_map()
-    var_names = sorted([(var.name, var.name.split(':')[0]) for var in tf.global_variables()
-            if var.name.split(':')[0] in saved_shapes])
+
+    var_names = sorted([(var.name, var.name.split(':')[0]) for var in tf.compat.v1.global_variables()
+
+                        if var.name.split(':')[0] in saved_shapes])
+
     restore_vars = []
-    with tf.variable_scope('', reuse=True):
-        for var_name, saved_var_name in var_names:
-            curr_var = tf.get_variable(saved_var_name)
-            var_shape = curr_var.get_shape().as_list()
-            if var_shape == saved_shapes[saved_var_name]:
-                restore_vars.append(curr_var)
-    saver = tf.train.Saver(restore_vars)
+    for var_name, tensor_name in var_names:
+        var = tf.compat.v1.global_variables(scope=tensor_name)[0]
+
+        var_shape = var.get_shape().as_list()
+        if var_shape == saved_shapes[tensor_name]:
+            restore_vars.append(var)
+
+    saver = tf.compat.v1.train.Saver(restore_vars)
+
     saver.restore(session, save_file)
+
 
 def softmax(x):
     e_x = np.exp(x - np.max(x))
