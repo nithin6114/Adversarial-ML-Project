@@ -8,7 +8,7 @@ _lut = [
     'stingray',
     'cock',
     'hen',
-    'ostrih, Struthio camelus',
+    'ostrich, Struthio camelus',
     'brambling, Fringilla montifringilla',
     'goldfinch, Carduelis carduelis',
     'house finch, linnet, Carpodacus mexicanus',
