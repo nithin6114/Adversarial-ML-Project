@@ -84,7 +84,7 @@ def main():
     # PRINT PARAMS
     args_text = json.dumps(args.__dict__)
     print(args_text)
-    attacks.main(args, gpus)
+    attacks.main(args)
 
 def get_available_gpus():
     local_device_protos = device_lib.list_local_devices()
